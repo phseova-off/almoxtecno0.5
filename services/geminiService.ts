@@ -1,11 +1,20 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Product, Category } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Tenta pegar a chave de diferentes fontes (Vercel/Local)
+const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY || '';
 
-const MODEL_NAME = "gemini-2.5-flash";
+let ai: GoogleGenAI | null = null;
+if (API_KEY) {
+  ai = new GoogleGenAI(API_KEY);
+} else {
+  console.warn("Gemini API Key não encontrada. As funções de IA estarão desativadas.");
+}
+
+const MODEL_NAME = "gemini-1.5-flash"; // Usando a versão estável mais recente suportada pelo SDK gratuito
 
 export const suggestCategory = async (productName: string): Promise<Category | null> => {
+  if (!ai) return "Outros";
   try {
     const response = await ai.models.generateContent({
       model: MODEL_NAME,
@@ -24,7 +33,7 @@ export const suggestCategory = async (productName: string): Promise<Category | n
 };
 
 export const analyzeInventory = async (products: Product[]) => {
-  if (products.length === 0) return null;
+  if (!ai || products.length === 0) return null;
 
   // Include minStock in the prompt so AI knows the specific context for each item
   const inventoryList = products.map(p =>
@@ -48,17 +57,9 @@ export const analyzeInventory = async (products: Product[]) => {
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            summary: { type: Type.STRING, description: "A brief overview of the inventory status." },
-            lowStockAlerts: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING },
-              description: "List of items that seem critically low based on their minimum stock levels."
-            },
-            restockSuggestions: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING },
-              description: "General advice on what to buy next."
-            }
+            summary: { type: Type.STRING },
+            lowStockAlerts: { type: Type.ARRAY, items: { type: Type.STRING } },
+            restockSuggestions: { type: Type.ARRAY, items: { type: Type.STRING } }
           }
         }
       }
