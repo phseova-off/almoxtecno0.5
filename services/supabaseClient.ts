@@ -7,4 +7,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
     console.error('Supabase credentials missing in environment variables');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Fallback to avoid "URL is required" crash during build/deployment if vars are missing
+export const supabase = createClient(
+    supabaseUrl || 'https://placeholder.supabase.co',
+    supabaseAnonKey || 'placeholder'
+);
